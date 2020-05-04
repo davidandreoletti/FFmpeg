@@ -9697,7 +9697,7 @@ option, check the @ref{color syntax,,"Color" section in the ffmpeg-utils manual,
 The default value of @var{bordercolor} is "black".
 
 @item expansion
-Select how the @var{text} is expanded. Can be either @code{none},
+Select how the @var{text} and @var{textfile} are expanded. Can be either @code{none},
 @code{strftime} (deprecated) or
 @code{normal} (default). See the @ref{drawtext_expansion, Text expansion} section
 below for details.
@@ -9824,9 +9824,13 @@ parameter @var{text}.
 
 If both @var{text} and @var{textfile} are specified, an error is thrown.
 
+This parameter supports (per frame) variable expansion. Per frame variable 
+expansion requires @code{reload=1}. See @var{expansion} for details.
+
+
 @item reload
-If set to 1, the @var{textfile} will be reloaded before each frame.
-Be sure to update it atomically, or it may be read partially, or even fail.
+If set to 1, then before each frame, @var{textfile} file path will be expanded and then the file at said path will be reloaded.
+Be sure to update the file atomically, or it may be read partially, or even fail.
 
 @item x
 @item y
@@ -10096,6 +10100,12 @@ drawtext="fontsize=15:fontfile=FreeSerif.ttf:text=LONG_LINE:y=h-line_h:x=-50*t"
 Show the content of file @file{CREDITS} off the bottom of the frame and scroll up.
 @example
 drawtext="fontsize=20:fontfile=FreeSerif.ttf:textfile=CREDITS:y=h-20*t"
+@end example
+
+@item
+Each frame, reload a different text file at /path/to/frameX.txt, where X is replaced with the frame number being processed by the filter
+@example
+drawtext="expansion:normal:textfile=/path/to/frame%@{frame_num@}.txt:reload=1"
 @end example
 
 @item

@@ -155,7 +155,8 @@ typedef struct DrawTextContext {
     int ft_load_flags;              ///< flags used for loading fonts, see FT_LOAD_*
     FT_Vector *positions;           ///< positions for each element in the text
     size_t nb_positions;            ///< number of elements of positions array
-    char *textfile;                 ///< file with text to be drawn
+    char *textfile;                 ///< filename with text to be drawn
+    AVBPrint expanded_textfile;     ///< Same as textfile, except the filename is expanded
     int x;                          ///< x position to start drawing text
     int y;                          ///< y position to start drawing text
     int max_glyph_w;                ///< max glyph width
@@ -568,6 +569,7 @@ static int load_font(AVFilterContext *ctx)
     return err;
 }
 
+static int expand_text(AVFilterContext *ctx, char *text, AVBPrint *bp);
 static int load_textfile(AVFilterContext *ctx)
 {
     DrawTextContext *s = ctx->priv;
@@ -576,10 +578,18 @@ static int load_textfile(AVFilterContext *ctx)
     uint8_t *tmp;
     size_t textbuf_size;
 
-    if ((err = av_file_map(s->textfile, &textbuf, &textbuf_size, 0, ctx)) < 0) {
+    if ((err = expand_text(ctx, s->textfile, &s->expanded_textfile)) < 0) {
+        av_log(ctx, AV_LOG_ERROR, "The text file path '%s' is not expandable\n",
+            s->textfile);
+        return err;
+    }
+
+    av_log(ctx, AV_LOG_DEBUG, "expanded_textfile:%s\n", s->expanded_textfile.str);
+
+    if ((err = av_file_map(s->expanded_textfile.str, &textbuf, &textbuf_size, 0, ctx)) < 0) {
         av_log(ctx, AV_LOG_ERROR,
                "The text file '%s' could not be read or is empty\n",
-               s->textfile);
+               s->expanded_textfile.str);
         return err;
     }
 
@@ -705,6 +715,8 @@ static av_cold int init(AVFilterContext *ctx)
         return AVERROR(EINVAL);
     }
 
+    av_bprint_init(&s->expanded_textfile, 0, AV_BPRINT_SIZE_UNLIMITED);
+
     if (s->textfile) {
         if (s->text) {
             av_log(ctx, AV_LOG_ERROR,
@@ -823,6 +835,7 @@ static av_cold void uninit(AVFilterContext *ctx)
 
     av_bprint_finalize(&s->expanded_text, NULL);
     av_bprint_finalize(&s->expanded_fontcolor, NULL);
+    av_bprint_finalize(&s->expanded_textfile, NULL);
 }
 
 static int config_input(AVFilterLink *inlink)
